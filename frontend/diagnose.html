@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SokoMkulima Leaf Doctor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Leaf doctor: take or upload a photo of one leaf (left) -> the disease, how sure the model is, what to do, and the
+   other possibilities (right). Model accuracy on unseen photos at the bottom, field photos reported separately. */
+:root{--soil:#0C1B13;--soil-2:#12261B;--soil-3:#183224;--rim:#244633;--text:#E6F2E6;--dim:#97B8A2;--faint:#5C7D69;
+  --maize:#4FD17F;--leaf:#B5E36A;--clay:#E8875F;--teal:#5CC6D0;
+  --display:"Archivo",Arial,Helvetica,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--soil);color:var(--text);font-family:var(--display);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:600px){.wrap{padding-inline:16px}}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand h1{margin:0;font-weight:800;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;line-height:1}
+.brand h1 span{color:var(--maize)}
+.brand p{margin:4px 0 0;color:var(--dim);max-width:72ch;font-size:14px}
+nav.tabs{display:inline-flex;border:1px solid var(--rim);border-radius:10px;overflow:hidden;align-self:center;flex-wrap:wrap}
+nav.tabs a{padding:9px 14px;color:var(--dim);text-decoration:none;font-weight:600;font-size:13.5px}
+nav.tabs a[aria-current=page]{background:var(--maize);color:var(--soil)}
+nav.tabs a:hover:not([aria-current]){color:var(--text);background:var(--soil-3)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:880px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--soil-2);border:1px solid var(--rim);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label,.lbl{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+select{font:500 14px var(--display);color:var(--text);background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:8px 10px}
+.drop{border:2px dashed var(--rim);border-radius:12px;min-height:280px;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;cursor:pointer;background:var(--soil);position:relative;overflow:hidden}
+.drop:hover,.drop.over{border-color:var(--maize)}
+.drop img{max-width:100%;max-height:420px;border-radius:8px;display:block}
+.drop .ph{color:var(--dim)}
+.drop .ph b{display:block;color:var(--text);font-size:18px;margin-bottom:4px}
+input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+button{font:600 14px var(--display);color:var(--soil);background:var(--maize);border:1px solid var(--maize);border-radius:8px;padding:10px 16px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,select:focus-visible,a:focus-visible,input:focus-visible+.ph{outline:2px solid var(--maize);outline-offset:2px}
+#out{display:flex;flex-direction:column;gap:14px}
+.empty{color:var(--dim);padding:30px 6px;text-align:center}
+.res{border-radius:12px;padding:14px 16px;border:1px solid rgba(79,209,127,.5);background:rgba(79,209,127,.07);display:flex;flex-direction:column;gap:8px}
+.res.unsure{border-color:rgba(232,135,95,.5);background:rgba(232,135,95,.07)}
+.res h3{margin:0;font-size:22px;line-height:1.2}
+.conf{display:grid;grid-template-columns:minmax(0,1fr) 3.5em;gap:8px;align-items:center}
+.conf .bar{height:10px;background:var(--soil-3);border-radius:5px;overflow:hidden}
+.conf .bar i{display:block;height:100%;background:var(--maize);border-radius:0 5px 5px 0}
+.conf .v{font:600 13px var(--mono);text-align:right}
+.todo{font-size:15px}
+.alt{display:flex;flex-direction:column;gap:6px}
+.alt .r{display:grid;grid-template-columns:minmax(0,1fr) 120px 3.5em;gap:8px;align-items:center;font-size:13.5px}
+.alt .bar{height:6px;background:var(--soil-3);border-radius:3px;overflow:hidden}
+.alt .bar i{display:block;height:100%;background:var(--dim)}
+.alt .v{font:500 12px var(--mono);text-align:right;color:var(--dim)}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.err{color:var(--clay)}
+.loading{display:flex;gap:10px;align-items:center;color:var(--dim)}
+.spin{width:16px;height:16px;border:2px solid var(--rim);border-top-color:var(--maize);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+.foot{font-size:12px;color:var(--faint);margin:0}
+.box{border:1px solid var(--rim);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--soil)}
+.pname{font-size:22px;font-weight:700;line-height:1.2}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px var(--mono);border:1px solid var(--rim);border-radius:999px;padding:3px 9px;color:var(--dim)}
+.chip.on{border-color:var(--maize);color:var(--maize)}
+.chip.off{border-color:var(--clay);color:var(--clay)}
+.status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{font-weight:800;font-size:20px;padding:6px 16px;border-radius:999px;color:var(--soil)}
+.pill.healthy{background:var(--maize)}.pill.sick{background:var(--clay)}.pill.unsure{background:var(--teal)}
+.risk{flex:1;min-width:160px;display:grid;grid-template-columns:minmax(0,1fr) 3.5em;gap:8px;align-items:center}
+.risk .bar{height:10px;background:var(--soil-3);border-radius:5px;overflow:hidden}
+.risk .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--maize),var(--clay))}
+.risk .v{font:600 13px var(--mono);text-align:right}
+ol.steps,ul.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.box.sick{border-color:rgba(232,135,95,.5);background:rgba(232,135,95,.06)}
+.box.well{border-color:rgba(79,209,127,.5);background:rgba(79,209,127,.06)}
+.box h3{margin:0;font-size:17px}
+.verdict{border-radius:14px;padding:18px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:16px;align-items:center;color:var(--soil)}
+.verdict.healthy,.verdict.natural{background:var(--maize)}.verdict.sick{background:var(--clay)}.verdict.photo{background:var(--teal)}
+.verdict .ic{width:72px;height:72px;border-radius:50%;background:rgba(12,27,19,.15);display:flex;align-items:center;justify-content:center}
+.verdict .ic svg{width:44px;height:44px;stroke:var(--soil);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.verdict .pl{font:600 13px var(--mono);letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.verdict .t{font-size:30px;font-weight:800;line-height:1.1}
+.verdict .n{font-size:17px;font-weight:700}
+.verdict .a{font-size:16px;margin-top:6px;line-height:1.4}
+.speak{justify-self:start;grid-column:1/-1;background:rgba(12,27,19,.85);color:var(--text);border:0;font-size:14px;padding:8px 14px}
+details.more{border:1px solid var(--rim);border-radius:12px;padding:10px 14px}
+details.more summary{cursor:pointer;font-weight:600;color:var(--dim)}
+details.more[open]{display:flex;flex-direction:column;gap:12px}
+details.more[open] summary{margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Soko<span>Mkulima</span></h1>
+      <p>Leaf doctor: photograph a leaf of <b>any plant</b>. The app names the plant, checks if it is healthy or sick, and tells you what to do. For maize, potato, tomato and cassava a specialist model also names the exact disease.</p></div>
+    <nav class="tabs" aria-label="Pages"><a href="/farm">My farm</a><a href="/">Sell or store</a><a href="/plan">Plan the season</a><a href="/insure">Insure the crop</a><a href="/diagnose" aria-current="page">Leaf doctor</a><a href="/coop">Cooperatives</a><a href="/warning">Early warning</a><a href="/admin">Alerts</a></nav>
+  </header>
+  <div class="main">
+    <section class="card" aria-labelledby="p-h">
+      <h2 id="p-h">Your leaf</h2>
+      <div class="row">
+        <div class="field"><label for="crop">Plant (optional)</label><select id="crop"><option value="">let the app decide</option></select></div>
+        <div class="field"><label for="lang">Language</label><select id="lang"><option value="en">English</option><option value="sw">Kiswahili</option><option value="fr">Français</option></select></div>
+      </div>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*" capture="environment" aria-label="Take or choose a photo of a leaf">
+        <span class="ph" id="ph"><b>Take a photo</b>or choose one · one leaf, in daylight, filling the frame</span>
+      </label>
+      <button type="button" id="go" disabled>Check this leaf</button>
+    </section>
+    <section class="card" aria-labelledby="r-h" aria-live="polite">
+      <h2 id="r-h">Result</h2>
+      <div id="out"><p class="empty" id="status">Loading the model…</p></div>
+    </section>
+  </div>
+  <p class="foot" id="acc"></p>
+  <p class="foot">How it works: CLIP (an image-and-text deep learning model trained on 2 billion pictures) checks that the photo is a plant, names it among about 120 African crops, fruit, trees and weeds, and compares it with descriptions of healthy and sick leaves; a small layer trained on 15 plants' labelled photos (PlantVillage; iCassava 2019, Makerere University AI Lab) sharpens the healthy/sick check. It is tested on plants it never saw in training. The specialist CNN covers maize, potato, tomato and cassava. A photo is a first check, not a lab test: for anything serious, show the plant to your extension officer.</p>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const CN = {maize:"Maize", potato:"Potato", tomato:"Tomato", cassava:"Cassava"};
+let file = null, ready = false;
+async function api(p, opt){ const r = await fetch(p, opt); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || r.status); return j; }
+const pc = v => Math.round(v * 100) + "%";
+function setFile(f){
+  if(!f) return; file = f;
+  const url = URL.createObjectURL(f);
+  $("ph").innerHTML = `<img src="${url}" alt="Your leaf photo">`;
+  $("go").disabled = !ready;
+}
+$("file").addEventListener("change", e => setFile(e.target.files[0]));
+["dragover","dragenter"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave","drop"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+const SRC = {clip: "named by the app", plantnet: "named by Pl@ntNet", you: "you chose it", specialist: "from the specialist model"};
+const ICON = {healthy: '<path d="M10 23l8 8 16-17"/>', natural: '<path d="M22 6c8 6 12 13 12 20a12 12 0 0 1-24 0c0-7 4-14 12-20z"/><path d="M22 38V20"/>',
+  sick: '<path d="M22 8v18"/><circle cx="22" cy="34" r="1.5"/>', photo: '<rect x="6" y="13" width="32" height="22" rx="4"/><circle cx="22" cy="24" r="6"/><path d="M16 13l3-5h6l3 5"/>'};
+function say(text){
+  try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text);
+       u.lang = {en: "en", sw: "sw", fr: "fr"}[$("lang").value] || "en"; speechSynthesis.speak(u); }catch(e){}
+}
+let lastSay = "";
+function verdictHtml(r){
+  const v = r.verdict, p = r.plant;
+  const plant = p ? p.name.charAt(0).toUpperCase() + p.name.slice(1) : "";
+  lastSay = [plant, v.title, v.name, v.action].filter(Boolean).join(". ");
+  return `<div class="verdict ${v.kind}" role="status"><span class="ic"><svg viewBox="0 0 44 44" aria-hidden="true">${ICON[v.kind]}</svg></span>
+    <div>${plant ? `<div class="pl">${esc(plant)}</div>` : ""}<div class="t">${esc(v.title)}</div>
+      ${v.name ? `<div class="n">${esc(v.name)}</div>` : ""}<div class="a">${esc(v.action)}</div></div>
+    ${"speechSynthesis" in window ? `<button type="button" class="speak" onclick="say(lastSay)">&#128264; Read aloud</button>` : ""}</div>`;
+}
+function render(r){
+  if(r.kind === "plant" && r.verdict)
+    return verdictHtml(r) + `<details class="more"><summary>More details</summary>${renderDetails(r)}</details>`;
+  return renderDetails(r);
+}
+function renderDetails(r){
+  if(r.kind === "unknown")
+    return `<div class="res unsure"><div class="lbl">Not one of our 4 crops?</div><h3 style="font-size:17px">${esc(r.message)}</h3></div>`;
+  if(r.kind === "not_plant")
+    return `<div class="res unsure"><div class="lbl">Not a plant leaf?</div><h3>${esc(r.message)}</h3><p class="hint">If it is a plant, choose it in the Plant list and check again.</p></div>`;
+  const p = r.plant, h = r.health;
+  let html = `<div class="box"><div class="lbl">This plant is</div>
+    <div class="pname">${p ? esc(p.name.charAt(0).toUpperCase() + p.name.slice(1)) : "Unknown plant"}</div>
+    <div class="chips">${p && p.prob != null && p.source !== "you" ? `<span class="chip">${pc(p.prob)} sure</span>` : ""}<span class="chip">${esc(SRC[p?.source] || "")}</span>
+      <span class="chip ${r.supported ? "on" : "off"}">${r.supported ? "detailed disease model" : "general health check"}</span></div>
+    ${!r.plant_sure ? `<p class="hint">Not sure of the plant. If you know it, choose it in the Plant list for a better check.</p>` : ""}
+    ${r.alternatives?.length ? `<p class="hint">Could also be: ${r.alternatives.map(a => `${esc(a.name)} (${pc(a.prob)})`).join(", ")}</p>` : ""}
+    <p class="hint">${esc(r.note)}</p></div>`;
+  html += `<div class="box ${h.status === "sick" ? "sick" : h.status === "healthy" ? "well" : ""}"><div class="lbl">Health</div>
+    <div class="status"><span class="pill ${h.status}">${esc(h.label)}</span>
+      <div class="risk" title="chance the leaf is sick"><span class="bar"><i style="width:${pc(h.p_sick)}"></i></span><span class="v">${pc(h.p_sick)}</span></div></div>
+    <p class="hint">Chance this leaf is sick: ${pc(h.p_sick)} (${{specialist: "specialist model", universal: "any-plant check", both: "specialist model and any-plant check together"}[h.source]}).</p>
+    ${r.old_leaf ? `<p style="margin:0">${esc(r.old_text)}</p>` : ""}</div>`;
+  const d = r.disease;
+  if(d && d.sure && !d.top[0].label.endsWith("_healthy"))
+    html += `<div class="box sick"><div class="lbl">Disease</div><h3>${esc(d.top[0].name)}</h3><div class="todo">${esc(d.top[0].todo)}</div></div>`;
+  else if(d && !d.sure && h.status !== "healthy")
+    html += `<div class="box"><div class="lbl">Possible diseases (specialist model, not sure)</div><div class="alt">${d.top.map(a => `<div class="r"><span>${esc(a.name)}</span><span class="bar"><i style="width:${pc(a.prob)}"></i></span><span class="v">${pc(a.prob)}</span></div>`).join("")}</div></div>`;
+  if(r.symptom){
+    const s = r.symptom;
+    const nat = s.group === "old_leaf";
+    html += `<div class="box ${nat ? "well" : "sick"}"><div class="lbl">${nat ? "Most likely" : "Most likely sign" + (h.status === "unsure" ? " (if it is sick)" : "")}</div><h3>${esc(s.name)}</h3>
+      <p class="hint" style="color:var(--text)">${esc(s.why)}</p><div class="lbl">What to do</div>
+      <ol class="steps">${s.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>
+      ${r.other_symptoms?.length ? `<div class="lbl" style="margin-top:4px">Other possible signs</div><div class="alt">${r.other_symptoms.map(a => `<div class="r"><span>${esc(a.name)}</span><span class="bar"><i style="width:${pc(a.prob)}"></i></span><span class="v">${pc(a.prob)}</span></div>`).join("")}</div>` : ""}</div>`;
+  }
+  if(h.status !== "sick")
+    html += `<div class="box well"><div class="lbl">${h.status === "healthy" ? "Looking good. Keep it healthy" : "Good practice meanwhile"}</div>
+      <ul class="steps">${r.care.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  if(h.status === "unsure" && !r.old_leaf) html += `<p class="hint">${esc(r.unsure_text)}</p>`;
+  html += `<p class="hint">${esc(r.call)}</p>`;
+  return html;
+}
+$("go").addEventListener("click", async () => {
+  if(!file) return;
+  $("out").innerHTML = `<div class="loading"><span class="spin"></span>Looking at the leaf…</div>`;
+  const fd = new FormData(); fd.append("photo", file); fd.append("crop", $("crop").value); fd.append("lang", $("lang").value);
+  try{ $("out").innerHTML = render(await api("/api/diagnose", {method: "POST", body: fd})); }
+  catch(e){ $("out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+async function load(){
+  try{
+    const m = await api("/api/diagnose/meta");
+    if(!m.ready){ $("status").textContent = m.message + (m.status ? ` Now: ${m.status}` : ""); setTimeout(load, 30000); return; }
+    ready = true; $("go").disabled = !file;
+    const keep = $("crop").value;
+    $("crop").innerHTML = `<option value="">let the app decide</option>` + m.plants.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join("");
+    $("crop").value = keep;
+    $("status").textContent = "Take or choose a photo of any plant, then press Check this leaf.";
+    const parts = [], u = m.universal || {}, sp = m.specialist;
+    if(!u.ready) parts.push("The any-plant check is still downloading: until then only maize, potato, tomato and cassava can be checked.");
+    if(u.loso) parts.push(`Any-plant check, tested on plants it never saw: healthy vs sick right ${pc(u.loso.balanced_acc)}` +
+      (u.naming ? ` · plant named right ${pc((u.naming.species_model || {}).top1 ?? u.naming.top1)}` : "") + ".");
+    else if(u.ready) parts.push("The any-plant check is working; its test on unseen plants is still running.");
+    if(sp){ const src = sp.by_source || {};
+      parts.push(`Specialist model: ${pc(sp.test_accuracy)} right on ${sp.n_test} unseen photos` +
+        (src.icassava != null ? ` · ${pc(src.icassava)} on real cassava field photos` : "") + "."); }
+    if(!sp) setTimeout(load, 60000);
+    $("acc").textContent = parts.join(" ");
+  }catch(e){ $("status").textContent = "Backend not reachable."; }
+}
+load();
+</script>
+</body>
+</html>

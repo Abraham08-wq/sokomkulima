@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SokoMkulima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a live map of Africa's food-market graph (left) beside the selected market's forecast and advice (right).
+   Below: model comparison and an SMS simulator. One committed deep-forest-green theme with bright leaf-green accents. */
+:root{
+  --soil:#0C1B13; --soil-2:#12261B; --soil-3:#183224; --rim:#244633;
+  --text:#E6F2E6; --dim:#97B8A2; --faint:#5C7D69;
+  --maize:#4FD17F; --leaf:#B5E36A; --clay:#E8875F; --teal:#5CC6D0;
+  --display:"Archivo",Arial,Helvetica,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--soil);color:var(--text);font-family:var(--display);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1440px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand h1{margin:0;font-weight:800;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;line-height:1}
+.brand h1 span{color:var(--maize)}
+.brand p{margin:4px 0 0;color:var(--dim);max-width:70ch;font-size:14px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+select,input[type=number],input[type=text]{font:500 14px var(--display);color:var(--text);background:var(--soil-2);border:1px solid var(--rim);border-radius:8px;padding:8px 10px}
+button{font:600 13px var(--display);color:var(--text);background:var(--soil-3);border:1px solid var(--rim);border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--maize)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--maize);outline-offset:2px}
+.live{display:flex;align-items:center;gap:8px;align-self:center;font:500 12px var(--mono);color:var(--dim);background:var(--soil-2);border:1px solid var(--rim);border-radius:999px;padding:5px 6px 5px 12px;max-width:100%}
+.live b{font-weight:600;letter-spacing:.06em}
+.live .dot{width:9px;height:9px;border-radius:50%;background:var(--faint);flex:none}
+.live[data-state=live]{border-color:rgba(79,209,127,.55)} .live[data-state=live] b{color:var(--maize)}
+.live[data-state=live] .dot{background:var(--maize);animation:pulse 2s ease-out infinite}
+.live[data-state=demo] b{color:var(--clay)} .live[data-state=demo] .dot{background:var(--clay)}
+.live[data-state=checking] b,.live[data-state=training] b{color:var(--leaf)}
+.live[data-state=checking] .dot,.live[data-state=training] .dot{background:var(--leaf);animation:pulse 1s ease-out infinite}
+.live[data-state=error] b{color:var(--clay)}
+.live button{padding:3px 9px;font-size:11.5px;border-radius:999px}
+.examples .lg{font:600 10px var(--mono);color:var(--maize);margin-right:4px}
+nav.tabs{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rim);border-radius:10px;overflow:hidden;align-self:center}
+nav.tabs a{padding:9px 14px;color:var(--dim);text-decoration:none;font-weight:600;font-size:13.5px}
+nav.tabs a[aria-current=page]{background:var(--maize);color:var(--soil)}
+nav.tabs a:hover:not([aria-current]){color:var(--text);background:var(--soil-3)}
+a.planlink{color:var(--maize);font-size:13px;font-weight:600;text-decoration:none}
+a.planlink:hover{text-decoration:underline}
+.row-wts{display:flex;gap:10px;flex-wrap:wrap}
+.row-wts input{width:110px}
+.wts{display:flex;flex-direction:column;gap:6px}
+.wts .best{border:1px solid rgba(79,209,127,.5);background:rgba(79,209,127,.08);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.wts .stay{border:1px solid var(--rim);background:var(--soil);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.wts table{font-size:12.5px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,209,127,.6)}100%{box-shadow:0 0 0 9px rgba(79,209,127,0)}}
+@media (prefers-reduced-motion:reduce){.live .dot{animation:none!important}}
+.main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px}
+@media (max-width:1000px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--soil-2);border:1px solid var(--rim);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.mapbox{position:relative;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 60% 45%,#173324,#0A170F 70%)}
+#map{display:block;width:100%;height:auto;aspect-ratio:1/1;cursor:crosshair}
+.legend{position:absolute;left:12px;bottom:12px;background:rgba(12,27,19,.88);border:1px solid var(--rim);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--dim);display:flex;flex-direction:column;gap:4px;max-width:230px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:6px 9px;font-size:12.5px;display:none;white-space:nowrap}
+.timeline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.timeline input[type=range]{flex:1;min-width:160px;accent-color:var(--maize)}
+.month{font:500 18px var(--mono);color:var(--maize);min-width:86px}
+.seg{display:inline-flex;border:1px solid var(--rim);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--dim)}
+.seg button[aria-pressed=true]{background:var(--maize);color:var(--soil)}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.mk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.mk-head h3{margin:0;font-size:24px;font-weight:700;line-height:1.1}
+.mk-head .sub{color:var(--dim);font-size:13px}
+.price{font:500 26px var(--mono);text-align:right}
+.price small{display:block;font:400 11px var(--mono);color:var(--dim)}
+.advice{border-radius:12px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;border:1px solid}
+.advice.store{background:rgba(181,227,106,.1);border-color:rgba(181,227,106,.5)}
+.advice.sell{background:rgba(232,135,95,.1);border-color:rgba(232,135,95,.5)}
+.advice .act{grid-row:span 2;font-weight:800;font-size:30px;letter-spacing:.02em}
+.advice.store .act{color:var(--leaf)} .advice.sell .act{color:var(--clay)}
+.advice .why{font-size:13.5px} .advice .conf{font:400 12px var(--mono);color:var(--dim)}
+#chart{width:100%;height:220px;display:block}
+.costs{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.costs .field input{width:90px}
+.nb{display:flex;flex-direction:column;gap:5px}
+.nb-row{display:grid;grid-template-columns:minmax(0,1fr) 90px 44px;gap:8px;align-items:center;font-size:13px;cursor:pointer;padding:3px 4px;border-radius:6px}
+.nb-row:hover{background:var(--soil-3)}
+.nb-row .bar{height:6px;background:var(--soil);border-radius:3px;overflow:hidden}
+.nb-row .bar i{display:block;height:100%;background:var(--maize)}
+.nb-row .w{font:400 12px var(--mono);text-align:right;color:var(--dim)}
+.tag{font:500 10.5px var(--mono);color:var(--teal);border:1px solid rgba(92,198,208,.5);border-radius:4px;padding:0 4px;margin-left:4px}
+.lower{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+@media (max-width:1000px){.lower{grid-template-columns:minmax(0,1fr)}}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--rim)}
+td{padding:7px 8px;border-bottom:1px solid var(--rim)}
+td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
+tr.best td{color:var(--maize);font-weight:600}
+.phone{background:var(--soil);border:1px solid var(--rim);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:260px}
+.msgs{flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:260px}
+.bubble{max-width:85%;padding:8px 11px;border-radius:12px;font-size:13.5px}
+.bubble.me{align-self:flex-end;background:var(--maize);color:var(--soil);border-bottom-right-radius:3px}
+.bubble.sys{align-self:flex-start;background:var(--soil-3);border-bottom-left-radius:3px}
+.send{display:flex;gap:8px} .send input{flex:1;min-width:0}
+.examples{display:flex;gap:6px;flex-wrap:wrap}
+.examples button{font:500 11.5px var(--mono);padding:4px 8px}
+.foot{font-size:12px;color:var(--faint);margin:0}
+.status{font:400 12px var(--mono);color:var(--dim)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Soko<span>Mkulima</span></h1>
+      <p>Africa's food markets as one living network. A dynamic graph neural network learns how price shocks travel between markets, forecasts prices 1–3 months ahead, and tells farmers whether to <b>sell now</b> or <b>store</b>.</p>
+    </div>
+    <div class="controls">
+      <nav class="tabs" aria-label="Pages"><a href="/farm">My farm</a><a href="/" aria-current="page">Sell or store</a><a href="/plan">Plan the season</a><a href="/insure">Insure the crop</a><a href="/diagnose">Leaf doctor</a><a href="/coop">Cooperatives</a><a href="/warning">Early warning</a><a href="/admin">Alerts</a></nav>
+      <div class="live" id="live" data-state="checking" role="status" aria-live="polite" title="">
+        <span class="dot"></span><span><b id="live-state">CONNECTING</b> <span id="live-text"></span></span>
+        <button type="button" id="live-btn" title="Check WFP for new prices now">Check now</button>
+      </div>
+      <div class="field"><label for="ds">Crop</label><select id="ds"></select></div>
+      <div class="field"><label for="mt">Model</label><select id="mt"></select></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="card" aria-labelledby="map-h">
+      <h2 id="map-h">Market network · <span id="net-count"></span></h2>
+      <div class="timeline">
+        <button type="button" id="play" aria-label="Play through the months">▶ Play</button>
+        <input type="range" id="slider" min="0" max="0" value="0" aria-label="Month">
+        <span class="month" id="mlabel">–</span>
+        <div class="seg" role="group" aria-label="Colour markets by">
+          <button type="button" id="mode-shock" aria-pressed="true">Price shocks</button>
+          <button type="button" id="mode-fc" aria-pressed="false">Forecast</button>
+        </div>
+      </div>
+      <div class="mapbox">
+        <canvas id="map" aria-label="Map of African markets and the links between them"></canvas>
+        <div class="tip" id="tip"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <p class="hint">Lines are the links the model uses between markets. Thicker, brighter lines mean that link mattered more that month, and they change over time. Press play to watch shocks spread. Click a market for its forecast.</p>
+    </section>
+
+    <section class="card" aria-labelledby="mk-h" aria-live="polite">
+      <h2 id="mk-h">Selected market</h2>
+      <div class="mk-head">
+        <div><h3 id="mk-name">–</h3><div class="sub" id="mk-sub"></div><a class="planlink" id="mk-plan" href="/plan">Plan the next season here →</a></div>
+        <div class="price" id="mk-price">–<small>per kg now</small></div>
+      </div>
+      <div class="advice" id="adv"><span class="act" id="adv-act">–</span><span class="why" id="adv-why"></span><span class="conf" id="adv-conf"></span></div>
+      <canvas id="chart" aria-label="Price history and forecast"></canvas>
+      <div class="costs">
+        <div class="field"><label for="c-store">Storage cost %/month</label><input type="number" id="c-store" value="1.0" step="0.5" min="0"></div>
+        <div class="field"><label for="c-loss">Storage loss %/month</label><input type="number" id="c-loss" value="1.5" step="0.5" min="0"></div>
+      </div>
+      <h2>Where to sell · after transport</h2>
+      <div class="row-wts"><div class="field"><label for="w-qty">Harvest to sell (kg)</label><input type="number" id="w-qty" value="500" step="100" min="50"></div>
+        <div class="field"><label for="w-rate">Transport $ per tonne-km</label><input type="number" id="w-rate" value="0.12" step="0.01" min="0"></div></div>
+      <div id="wts" class="wts"></div>
+      <h2>Markets driving this price now</h2>
+      <div class="nb" id="nb"></div>
+    </section>
+  </div>
+
+  <div class="lower">
+    <section class="card" aria-labelledby="cmp-h">
+      <h2 id="cmp-h">Does the graph help? Forecast error on held-out months</h2>
+      <table><thead><tr><th>Model</th><th class="n">1 month</th><th class="n">2 months</th><th class="n">3 months</th></tr></thead><tbody id="cmp"></tbody></table>
+      <p class="hint">Mean absolute percentage error (MAPE) on the last 24 months, which no model saw during training. Lower is better.</p>
+    </section>
+    <section class="card" aria-labelledby="sms-h">
+      <h2 id="sms-h">Farmer SMS (simulator)</h2>
+      <div class="phone">
+        <div class="msgs" id="msgs"><div class="bubble sys">Text PRICE + crop + market for prices and sell/store advice, or PLAN + crop + place (e.g. MBOLEA MAHINDI KITALE) for planting dates and fertilizer, in your language. English · Français · Português · العربية · Kiswahili · አማርኛ · Hausa · Soomaali · Yorùbá · Kinyarwanda · isiZulu</div></div>
+        <div class="examples" id="ex"></div>
+        <form class="send" id="smsf"><input type="text" id="smsin" aria-label="SMS text" placeholder="PRIX MAÏS BAMAKO" dir="auto"><button type="submit">Send</button></form>
+      </div>
+    </section>
+  </div>
+  <p class="foot">SokoMkulima · prices from WFP market monitoring (data.humdata.org), converted to USD per kg · <span class="status" id="status">loading…</span></p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const COL = {maize:"#4FD17F", leaf:"#B5E36A", clay:"#E8875F", teal:"#5CC6D0", text:"#E6F2E6", dim:"#97B8A2", faint:"#5C7D69"};
+const NAMES = {naive:"Same as last month", seasonal:"Seasonal average", graph_ridge:"Graph regression",
+               gru_no_graph:"Deep learning, no graph (GRU)", st_gnn:"Dynamic graph neural network (GATv2 + GRU)"};
+const CROPN = {maize:"Maize", sorghum:"Sorghum", millet:"Millet", rice:"Rice", wheat:"Wheat", teff:"Teff", beans:"Beans",
+               cowpea:"Cowpeas", groundnut:"Groundnuts", cassava:"Cassava"};
+const label = sl => { const [c, p] = [sl.slice(0, sl.lastIndexOf("_")), sl.slice(sl.lastIndexOf("_") + 1)]; return `${CROPN[c] || c} · ${p}`; };
+const BOUNDS = {lon0:-20, lon1:55, lat0:-37, lat1:38};
+let META, SERIES, slug, method, t = 0, mode = "shock", selected = null, playing = null, world = null, pts = [];
+
+async function api(p, opt){ const r = await fetch(p, opt); if(!r.ok) throw new Error(r.status); return r.json(); }
+const pct = v => (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+
+/* ---------- projection + canvas ---------- */
+const cv = $("map"), ctx = cv.getContext("2d");
+function resize(){
+  const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cv.width = r.width * d; cv.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); draw();
+}
+function proj(lon, lat){
+  const w = cv.clientWidth, h = cv.clientHeight;
+  return [(lon - BOUNDS.lon0) / (BOUNDS.lon1 - BOUNDS.lon0) * w, (BOUNDS.lat1 - lat) / (BOUNDS.lat1 - BOUNDS.lat0) * h];
+}
+
+/* optional country outlines (needs internet for the CDN; the map works without them) */
+async function loadWorld(){
+  try{
+    await new Promise((ok, no) => { const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    const topo = await (await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json")).json();
+    world = topojson.feature(topo, topo.objects.countries).features; draw();
+  }catch(e){ world = null; }
+}
+function drawWorld(){
+  ctx.lineWidth = 0.8;
+  if(!world){
+    ctx.strokeStyle = "rgba(151,184,162,.08)";
+    for(let lo = -20; lo <= 55; lo += 10){ const [x0,y0] = proj(lo, 38), [x1,y1] = proj(lo, -37); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+    for(let la = -30; la <= 30; la += 10){ const [x0,y0] = proj(-20, la), [x1,y1] = proj(55, la); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+    return;
+  }
+  ctx.strokeStyle = "rgba(151,184,162,.3)"; ctx.fillStyle = "rgba(230,242,230,.04)";
+  for(const f of world){
+    const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for(const poly of polys){ ctx.beginPath();
+      for(const ring of poly){ ring.forEach(([lo,la], i) => { const [x,y] = proj(lo,la); i ? ctx.lineTo(x,y) : ctx.moveTo(x,y); }); ctx.closePath(); }
+      ctx.fill(); ctx.stroke(); }
+  }
+}
+
+function nodeColor(i){
+  if(mode === "fc"){
+    const c = SERIES.forecast_change_pct[i], cost = (+$("c-store").value + +$("c-loss").value) * 3;
+    return c - cost >= 3 ? COL.leaf : COL.clay;
+  }
+  const p = SERIES.prices, a = p[t] && p[t][i], b = t > 0 && p[t-1] && p[t-1][i];
+  if(a == null || b == null) return COL.faint;
+  const ch = (a / b - 1) * 100;
+  if(ch > 6) return COL.clay; if(ch > 2) return "#F2C14E"; if(ch < -6) return COL.teal; if(ch < -2) return "#9AD9DF";
+  return COL.dim;
+}
+function shockSize(i){
+  const p = SERIES.prices, a = p[t] && p[t][i], b = t > 0 && p[t-1] && p[t-1][i];
+  return (a == null || b == null) ? 0 : Math.min(1, Math.abs(a / b - 1) / 0.15);
+}
+
+function draw(){
+  if(!META) return;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  ctx.clearRect(0, 0, w, h); drawWorld();
+  pts = META.markets.map(m => proj(m.lon, m.lat));
+  const W = SERIES.weights[t] || [];
+  META.edges.forEach(([i,j], k) => {
+    const v = W[k] || 0; if(v < 0.04) return;
+    const hl = selected != null && (i === selected || j === selected);
+    ctx.strokeStyle = META.cross[k] ? `rgba(92,198,208,${0.1 + 0.75*v})` : `rgba(79,209,127,${0.1 + 0.75*v})`;
+    ctx.lineWidth = (hl ? 1.5 : 0.4) + 3.2 * v;
+    ctx.beginPath(); ctx.moveTo(...pts[i]); ctx.lineTo(...pts[j]); ctx.stroke();
+  });
+  META.markets.forEach((m, i) => {
+    const [x,y] = pts[i], r = 3 + Math.min(4, Math.sqrt(m.n_obs) / 4);
+    if(mode === "shock"){ const s = shockSize(i); if(s > 0.25){ ctx.fillStyle = nodeColor(i) + "33"; ctx.beginPath(); ctx.arc(x, y, r + 10 * s, 0, 7); ctx.fill(); } }
+    ctx.fillStyle = nodeColor(i); ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if(i === selected){ ctx.strokeStyle = COL.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 7); ctx.stroke();
+      ctx.fillStyle = COL.text; ctx.font = "600 12px Archivo, Arial"; ctx.fillText(m.name, x + r + 7, y + 4); }
+  });
+}
+
+function legend(){
+  $("legend").innerHTML = mode === "shock"
+    ? `<b style="color:var(--text)">Price change this month</b><span><i style="background:${COL.clay}"></i>up more than 6%</span><span><i style="background:#F2C14E"></i>up 2–6%</span><span><i style="background:${COL.dim}"></i>steady</span><span><i style="background:${COL.teal}"></i>falling</span><span style="margin-top:4px"><i style="background:${COL.maize};border-radius:0;height:3px"></i>link within a country</span><span><i style="background:${COL.teal};border-radius:0;height:3px"></i>cross-border link</span>`
+    : `<b style="color:var(--text)">Advice from 3-month forecast</b><span><i style="background:${COL.leaf}"></i>STORE: rise beats storage costs</span><span><i style="background:${COL.clay}"></i>SELL: not worth storing</span>`;
+}
+
+/* ---------- interaction ---------- */
+function nearest(ev){
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  let best = -1, bd = 14 * 14;
+  pts.forEach(([px,py], i) => { const d = (px-x)**2 + (py-y)**2; if(d < bd){ bd = d; best = i; } });
+  return [best, x, y];
+}
+cv.addEventListener("mousemove", ev => {
+  const [i, x, y] = nearest(ev), tip = $("tip");
+  if(i < 0){ tip.style.display = "none"; return; }
+  const m = META.markets[i], p = SERIES.prices[t][i];
+  tip.innerHTML = `<b>${m.name}</b>, ${m.country}<br>${p == null ? "no price" : "$" + p.toFixed(3) + "/kg"} · ${META.months[t]}`;
+  tip.style.display = "block"; tip.style.left = Math.min(x + 12, cv.clientWidth - 160) + "px"; tip.style.top = (y + 12) + "px";
+});
+cv.addEventListener("mouseleave", () => $("tip").style.display = "none");
+cv.addEventListener("click", ev => { const [i] = nearest(ev); if(i >= 0) selectMarket(i); });
+
+function setMonth(v){ t = +v; $("slider").value = t; $("mlabel").textContent = META.months[t]; draw(); }
+$("slider").addEventListener("input", e => setMonth(e.target.value));
+$("play").addEventListener("click", () => {
+  if(playing){ clearInterval(playing); playing = null; $("play").textContent = "▶ Play"; return; }
+  if(t >= META.months.length - 1) setMonth(12);
+  $("play").textContent = "❚❚ Pause";
+  playing = setInterval(() => { if(t >= META.months.length - 1){ clearInterval(playing); playing = null; $("play").textContent = "▶ Play"; return; } setMonth(t + 1); }, 320);
+});
+function setMode(m){ mode = m; $("mode-shock").setAttribute("aria-pressed", m === "shock"); $("mode-fc").setAttribute("aria-pressed", m === "fc"); legend(); draw(); }
+$("mode-shock").addEventListener("click", () => setMode("shock"));
+$("mode-fc").addEventListener("click", () => setMode("fc"));
+["c-store","c-loss"].forEach(id => $(id).addEventListener("change", () => { if(selected != null) selectMarket(selected); draw(); }));
+
+/* ---------- market panel ---------- */
+async function selectMarket(i){
+  selected = i; draw();
+  const m = META.markets[i];
+  const d = await api(`/api/market?slug=${slug}&method=${method}&id=${encodeURIComponent(m.id)}&storage=${$("c-store").value}&loss=${$("c-loss").value}`);
+  $("mk-name").textContent = m.name;
+  $("mk-plan").href = `/plan?place=${encodeURIComponent(m.name)}&crop=${slug.slice(0, slug.lastIndexOf("_"))}`;
+  $("mk-sub").textContent = `${m.country} · ${META.commodity} (${META.pricetype.toLowerCase()}) · ${m.n_obs} months of prices`;
+  $("mk-price").innerHTML = `$${d.forecast.current.toFixed(3)}<small>per kg, ${META.origin}</small>`;
+  const a = d.advice, box = $("adv");
+  box.className = "advice " + (a.action === "STORE" ? "store" : "sell");
+  $("adv-act").textContent = a.action === "STORE" ? "STORE" : "SELL NOW";
+  $("adv-why").textContent = a.action === "STORE"
+    ? `Hold for ${a.store_months} month${a.store_months > 1 ? "s" : ""}: expected +${a.expected_gain_pct}% after ${a.storage_pct + a.loss_pct}%/month storage cost and loss.`
+    : `Expected price change of ${pct(a.by_horizon[2].gross_pct)} in 3 months does not cover storage cost and loss (${a.storage_pct + a.loss_pct}%/month).`;
+  $("adv-conf").textContent = `confidence: ${a.confidence} · model: ${NAMES[d.method] || d.method}`;
+  chart(d);
+  whereToSell(m);
+  $("nb").innerHTML = d.neighbours.map(n => `<div class="nb-row" data-id="${n.id}"><span>${n.name} <span style="color:var(--dim)">${n.country} · ${n.km} km</span>${n.cross_border ? '<span class="tag">border</span>' : ""}</span><span class="bar"><i style="width:${Math.round(n.weight*100)}%"></i></span><span class="w">${n.weight.toFixed(2)}</span></div>`).join("") || `<p class="hint">No linked markets.</p>`;
+  document.querySelectorAll(".nb-row").forEach(r => r.addEventListener("click", () => selectMarket(META.markets.findIndex(x => x.id === r.dataset.id))));
+}
+
+async function whereToSell(m){
+  try{
+    const w = await api(`/api/where_to_sell?slug=${slug}&id=${encodeURIComponent(m.id)}&qty=${$("w-qty").value || 500}&rate=${$("w-rate").value || 0.12}`);
+    const fmtd = v => (v >= 0 ? "+" : "−") + "$" + Math.abs(v).toFixed(3);
+    const head = w.best
+      ? `<div class="best"><b>Sell in ${w.best.name}</b> (${w.best.country}, ${w.best.km} km${w.best.cross_border ? ", across the border" : ""}): you keep about <b>$${w.best.gain_total.toFixed(0)} more</b> for ${w.qty_kg} kg than selling in ${w.home.name}, after $${w.best.transport_kg.toFixed(3)}/kg transport.</div>`
+      : `<div class="stay"><b>Sell in ${w.home.name}.</b> No market within 300 km pays enough more to cover transport for ${w.qty_kg} kg.</div>`;
+    $("wts").innerHTML = head + (w.options.length ? `<table><thead><tr><th>Market</th><th class="n">km</th><th class="n">farm-gate $/kg</th><th class="n">transport $/kg</th><th class="n">vs home</th></tr></thead><tbody>
+      ${w.options.slice(0, 5).map(o => `<tr><td>${o.name} <span style="color:var(--dim)">${o.country}</span></td><td class="n">${o.km}</td><td class="n">${o.price_kg.toFixed(3)}</td><td class="n">${o.transport_kg.toFixed(3)}</td><td class="n">${fmtd(o.gain_kg)}</td></tr>`).join("")}</tbody></table>` : "");
+  }catch(e){ $("wts").innerHTML = ""; }
+}
+["w-qty","w-rate"].forEach(id => $(id).addEventListener("change", () => { if(selected != null) whereToSell(META.markets[selected]); }));
+function chart(d){
+  const c = $("chart"), g = c.getContext("2d"), dpr = devicePixelRatio || 1;
+  const W = c.clientWidth, H = c.clientHeight; c.width = W * dpr; c.height = H * dpr; g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const n = d.months.length, start = Math.max(0, n - 48), hist = d.history.slice(start);
+  const bt = new Map(d.backtest.map(([m, v]) => [m, v]));
+  const xs = hist.length + 3, fc = d.forecast;
+  const vals = hist.filter(v => v != null).concat(fc.low, fc.high);
+  const lo = Math.min(...vals) * 0.95, hi = Math.max(...vals) * 1.05;
+  const L = 44, R = 10, T = 10, B = 24;
+  const X = i => L + i / (xs - 1) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  g.font = "11px IBM Plex Mono, monospace"; g.fillStyle = COL.dim; g.strokeStyle = "rgba(151,184,162,.15)"; g.lineWidth = 1;
+  for(let k = 0; k <= 3; k++){ const v = lo + (hi - lo) * k / 3; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText("$" + v.toFixed(2), 2, Y(v) + 4); }
+  for(let i = 0; i < hist.length; i += 12){ g.fillText(d.months[start + i].slice(0, 4), X(i) - 12, H - 6); }
+  const o = hist.length - 1;
+  g.fillStyle = (d.advice.action === "STORE" ? "rgba(181,227,106,.18)" : "rgba(232,135,95,.18)");
+  g.beginPath(); g.moveTo(X(o), Y(hist[o] ?? fc.current));
+  fc.high.forEach((v, k) => g.lineTo(X(o + 1 + k), Y(v)));
+  for(let k = 2; k >= 0; k--) g.lineTo(X(o + 1 + k), Y(fc.low[k]));
+  g.closePath(); g.fill();
+  g.strokeStyle = COL.text; g.lineWidth = 2; g.beginPath(); let pen = false;
+  hist.forEach((v, i) => { if(v == null){ pen = false; return; } pen ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)); pen = true; }); g.stroke();
+  g.fillStyle = COL.maize;
+  hist.forEach((v, i) => { const p = bt.get(d.months[start + i]); if(p != null){ g.beginPath(); g.arc(X(i), Y(p), 2.2, 0, 7); g.fill(); } });
+  g.strokeStyle = d.advice.action === "STORE" ? COL.leaf : COL.clay; g.setLineDash([5,4]); g.lineWidth = 2;
+  g.beginPath(); g.moveTo(X(o), Y(fc.current)); fc.forecast.forEach((v, k) => g.lineTo(X(o + 1 + k), Y(v))); g.stroke(); g.setLineDash([]);
+  g.fillStyle = COL.dim; g.fillText("— actual   • model's 1-month forecasts (test)   - - next 3 months", L, T + 8);
+}
+
+/* ---------- comparison + SMS ---------- */
+function comparison(){
+  const rows = Object.entries(META.comparison).sort((a, b) => a[1]["1"].mape - b[1]["1"].mape);
+  const sel = META.selection || {methods: {}}, chosen = sel.chosen;
+  $("cmp").innerHTML = rows.map(([k, v]) => { const s = sel.methods[k];
+    return `<tr class="${k === chosen ? "best" : ""}"><td>${NAMES[k] || k}${k === chosen ? " ★" : ""}</td>${["1","2","3"].map(h => `<td class="n">${v[h].mape.toFixed(2)}%</td>`).join("")}</tr>`; }).join("");
+  const c = chosen && sel.methods[chosen];
+  if(c && c.report_months) $("cmp").innerHTML += `<tr><td colspan="4" class="hint" style="font-size:12px">★ chosen on ${c.selection_months.join("–")} (1-month error ${c.selection_mape_h1.toFixed(2)}%); checked on ${c.report_months.join("–")}, months not used to choose it: ${c.report_mape_h1.toFixed(2)}%.</td></tr>`;
+}
+function bubble(text, who){ const b = document.createElement("div"); b.className = "bubble " + who; b.dir = "auto"; b.textContent = text; $("msgs").appendChild(b); $("msgs").scrollTop = 1e6; }
+$("smsf").addEventListener("submit", async e => {
+  e.preventDefault(); const text = $("smsin").value.trim(); if(!text) return;
+  bubble(text, "me"); $("smsin").value = "";
+  try{ const r = await api("/api/sms", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({text})});
+    bubble(r.reply, "sys");
+    if(r.market){
+      if(r.slug && r.slug !== slug){ slug = r.slug; $("ds").value = slug; method = null; selected = null; await loadDataset(); }
+      const i = META.markets.findIndex(m => m.id === r.market); if(i >= 0) selectMarket(i); } }
+  catch(err){ bubble("Service unavailable.", "sys"); }
+});
+
+/* ---------- load ---------- */
+async function loadDataset(){
+  $("status").textContent = "loading…";
+  META = await api(`/api/meta?slug=${slug}&method=${method || ""}`); method = META.method;
+  SERIES = await api(`/api/series?slug=${slug}&method=${method}`);
+  const e3 = m => META.comparison?.[m]?.["3"]?.mape;
+  $("mt").innerHTML = META.methods.map((m, k) => `<option value="${m}" ${m === method ? "selected" : ""}>${k === 0 ? "★ " : ""}${NAMES[m] || m}${e3(m) != null ? ` · ${e3(m).toFixed(1)}% error (3 mo)` : ""}</option>`).join("");
+  $("net-count").textContent = `${META.markets.length} markets · ${META.edges.length} links · ${META.commodity}`;
+  $("slider").max = META.months.length - 1; setMonth(META.months.length - 1);
+  api(`/api/sms/examples?slug=${slug}`).then(ex => {
+    $("ex").innerHTML = ex.map(e => `<button type="button" data-t="${e.text}" title="${e.language}"><span class="lg">${e.lang.toUpperCase()}</span> <bdi>${e.text}</bdi></button>`).join("");
+    $("ex").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { $("smsin").value = b.dataset.t; $("smsin").focus(); }));
+  }).catch(() => {});
+  comparison(); legend(); resize();
+  const start = META.markets.findIndex(m => m.name === "Nairobi");
+  selectMarket(start >= 0 ? start : 0);
+  $("status").textContent = `model: ${NAMES[method] || method} · ${META.demo ? "DEMO data" : "WFP prices"} to ${META.origin}`;
+}
+
+/* ---------- live status: polls the backend, reloads when a newly trained model is switched in ---------- */
+let STATUS = null;
+const ago = iso => { if(!iso) return "–"; const m = (Date.now() - new Date(iso)) / 6e4;
+  return m < 1 ? "just now" : m < 60 ? `${Math.round(m)} min ago` : m < 2880 ? `${Math.round(m/60)} h ago` : `${Math.round(m/1440)} days ago`; };
+async function pollStatus(){
+  try{
+    const s = await api("/api/status");
+    const state = s.busy && s.state !== "training" ? "checking" : (s.state || "checking");
+    $("live").dataset.state = state;
+    $("live-state").textContent = {live:"LIVE", demo:"DEMO DATA", checking:"CHECKING", training:"RETRAINING", error:"UPDATE FAILED"}[state] || state.toUpperCase();
+    $("live-text").textContent = state === "live" ? `WFP prices to ${s.data_as_of || "–"} · ${s.crops_ready || 0} crops · ${s.countries || "?"} countries · checked ${ago(s.checked_at)}`
+      : state === "demo" ? "WFP not reachable · synthetic prices"
+      : state === "training" ? (s.message || "retraining…")
+      : state === "checking" ? "asking WFP for new prices…" : (s.message || "");
+    $("live").title = (s.message || "") + (s.next_check ? `\nNext automatic check: ${new Date(s.next_check).toLocaleString()}` : "");
+    $("live-btn").disabled = !!s.busy;
+    if(STATUS && (s.version || 0) !== (STATUS.version || 0)) await start(true);
+    STATUS = s;
+  }catch(e){ $("live").dataset.state = "error"; $("live-state").textContent = "OFFLINE"; $("live-text").textContent = "backend not reachable"; }
+}
+$("live-btn").addEventListener("click", async () => {
+  try{ const r = await fetch("/api/refresh", {method:"POST"}); const j = await r.json(); $("live-text").textContent = j.message; }
+  catch(e){} setTimeout(pollStatus, 800);
+});
+setInterval(pollStatus, 15000); pollStatus();
+let wired = false;
+async function start(reload){
+  try{
+    const ds = await api("/api/datasets");
+    if(!ds.length){ $("status").textContent = "Preparing the first crops from WFP data… this page updates by itself."; return; }
+    $("ds").innerHTML = ds.map(d => `<option value="${d.slug}">${label(d.slug)}${d.methods.includes("st_gnn") ? "" : " (deep model training…)"}</option>`).join("");
+    if(!reload || !ds.some(d => d.slug === slug)) slug = ds[0].slug;
+    $("ds").value = slug;
+    if(reload && META){ const keep = selected; method = null; await loadDataset(); if(keep != null && keep < META.markets.length) selectMarket(keep); return; }
+    if(!wired){ wired = true;
+      $("ds").addEventListener("change", e => { slug = e.target.value; method = null; selected = null; loadDataset(); });
+      $("mt").addEventListener("change", e => { method = e.target.value; loadDataset(); }); }
+    await loadDataset();
+    if(!world) loadWorld();
+  }catch(e){ $("status").textContent = "Backend offline: run  python api/app.py"; }
+}
+addEventListener("resize", resize);
+start();
+</script>
+</body>
+</html>

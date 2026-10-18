@@ -1,0 +1,6 @@
+# Deep learning (graph neural network). CPU version is enough for this data size.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+torch_geometric>=2.5
+torchvision           # crop-disease CNN (MobileNetV3) from leaf photos
+open_clip_torch>=2.24  # universal leaf doctor: CLIP names any plant and checks healthy/sick

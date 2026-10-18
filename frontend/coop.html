@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SokoMkulima Cooperatives</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Cooperatives: the list and a "new co-op" form (left); one co-op's dashboard (right): buy together (bulk order
+   with discount, who pays what), protect together (bundle), sell together (one truck vs each farmer alone), message all. */
+:root{--soil:#0C1B13;--soil-2:#12261B;--soil-3:#183224;--rim:#244633;--text:#E6F2E6;--dim:#97B8A2;--faint:#5C7D69;
+  --maize:#4FD17F;--leaf:#B5E36A;--clay:#E8875F;--teal:#5CC6D0;
+  --display:"Archivo",Arial,Helvetica,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--soil);color:var(--text);font-family:var(--display);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1300px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:600px){.wrap{padding-inline:16px}}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand h1{margin:0;font-weight:800;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;line-height:1}
+.brand h1 span{color:var(--maize)}
+.brand p{margin:4px 0 0;color:var(--dim);max-width:72ch;font-size:14px}
+nav.tabs{display:inline-flex;border:1px solid var(--rim);border-radius:10px;overflow:hidden;align-self:center;flex-wrap:wrap}
+nav.tabs a{padding:9px 14px;color:var(--dim);text-decoration:none;font-weight:600;font-size:13.5px}
+nav.tabs a[aria-current=page]{background:var(--maize);color:var(--soil)}
+nav.tabs a:hover:not([aria-current]){color:var(--text);background:var(--soil-3)}
+.main{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:950px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--soil-2);border:1px solid var(--rim);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label,.lbl{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+select,input,textarea{font:500 14px var(--display);color:var(--text);background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:8px 10px;min-width:0}
+input[type=number]{width:80px}
+textarea{width:100%;min-height:60px;resize:vertical}
+button{font:600 13.5px var(--display);color:var(--text);background:var(--soil-3);border:1px solid var(--rim);border-radius:8px;padding:9px 14px;cursor:pointer}
+button:hover{border-color:var(--maize)}
+button.go{background:var(--maize);color:var(--soil);border-color:var(--maize);font-weight:700}
+button.sm{padding:4px 9px;font-size:12px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--maize);outline-offset:2px}
+.list{display:flex;flex-direction:column;gap:6px}
+.co{text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:500}
+.co[aria-pressed=true]{border-color:var(--maize);background:rgba(79,209,127,.08)}
+.co small{color:var(--dim);font:400 12px var(--mono)}
+#out{display:flex;flex-direction:column;gap:16px}
+.empty{color:var(--dim);padding:24px 6px;text-align:center}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:700px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--soil);border:1px solid var(--rim);border-radius:10px;padding:8px 10px}
+.tile .v{font:600 19px var(--mono)} .tile .k{font-size:11.5px;color:var(--dim)}
+.tile.good .v{color:var(--maize)}
+.box{border:1px solid var(--rim);background:var(--soil);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.box.green{border-color:rgba(79,209,127,.5);background:rgba(79,209,127,.07)}
+.box.teal{border-color:rgba(92,198,208,.5);background:rgba(92,198,208,.07)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:700px){.two{grid-template-columns:minmax(0,1fr)}}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--rim);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--rim)}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.err{color:var(--clay)}
+.loading{display:flex;gap:10px;align-items:center;color:var(--dim)}
+.spin{width:16px;height:16px;border:2px solid var(--rim);border-top-color:var(--maize);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Soko<span>Mkulima</span></h1>
+      <p>Cooperatives: farmers buy fertilizer together (bulk discount), protect it together, and sell together with one truck to the market that pays most.</p></div>
+    <nav class="tabs" aria-label="Pages"><a href="/farm">My farm</a><a href="/">Sell or store</a><a href="/plan">Plan the season</a><a href="/insure">Insure the crop</a><a href="/diagnose">Leaf doctor</a><a href="/coop" aria-current="page">Cooperatives</a><a href="/warning">Early warning</a><a href="/admin">Alerts</a></nav>
+  </header>
+  <div class="main">
+    <section class="card" aria-labelledby="l-h">
+      <h2 id="l-h">Cooperatives</h2>
+      <div class="list" id="list"></div>
+      <div class="lbl" style="margin-top:6px">New cooperative</div>
+      <div class="field"><label for="cname">Name</label><input id="cname" placeholder="Kitale Maize Growers"></div>
+      <div class="row">
+        <div class="field"><label for="ccrop">Crop</label><select id="ccrop"></select></div>
+        <div class="field"><label for="cplace">Town</label><input id="cplace" list="places" placeholder="Kitale" style="width:130px"><datalist id="places"></datalist></div>
+        <div class="field"><label for="cdisc">Bulk discount %</label><input type="number" id="cdisc" value="10" min="0" max="50"></div>
+      </div>
+      <button type="button" class="go" id="cadd">Create</button>
+      <p class="hint" id="cmsg"></p>
+    </section>
+    <section class="card" aria-labelledby="d-h" aria-live="polite">
+      <h2 id="d-h">Cooperative dashboard</h2>
+      <div id="out"><p class="empty">Choose or create a cooperative.</p></div>
+    </section>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (v, d = 0) => Number(v).toLocaleString("en", {maximumFractionDigits: d, minimumFractionDigits: d});
+const r5 = v => Math.round(v / 5) * 5;
+const CROPN = {maize:"Maize", sorghum:"Sorghum", millet:"Millet", rice:"Rice", wheat:"Wheat", teff:"Teff", beans:"Beans", cowpea:"Cowpeas", groundnut:"Groundnuts", cassava:"Cassava"};
+const LANGS = {en:"English", fr:"Français", pt:"Português", ar:"العربية", sw:"Kiswahili", am:"አማርኛ", ha:"Hausa", so:"Soomaali", yo:"Yorùbá", rw:"Kinyarwanda", zu:"isiZulu"};
+let cur = null;
+async function api(p, opt){ const r = await fetch(p, opt); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || r.status); return j; }
+const post = (p, body) => api(p, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {})});
+
+async function loadList(){
+  const d = await api("/api/coops");
+  $("list").innerHTML = d.coops.map(c => `<button type="button" class="co" data-id="${c.id}" aria-pressed="${cur === c.id}"><span>${esc(c.name)}<br><small>${esc(CROPN[c.crop] || c.crop)} · ${esc(c.place)}</small></span><small>${c.members} farmers · ${fmt(c.acres, 1)} ac</small></button>`).join("")
+    || `<p class="hint">No cooperatives yet.</p>`;
+  document.querySelectorAll(".co").forEach(b => b.addEventListener("click", () => open(+b.dataset.id)));
+}
+async function open(id){
+  cur = id; loadList();
+  $("out").innerHTML = `<div class="loading"><span class="spin"></span>Planning the season for the whole group…</div>`;
+  try{ render(await api(`/api/coops/${id}`)); }catch(e){ $("out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+function render(d){
+  const c = d.coop, crop = CROPN[c.crop] || c.crop;
+  const memberForm = `<div class="row"><div class="field"><label for="mphone">Phone</label><input id="mphone" placeholder="0712 345 678" style="width:140px"></div>
+      <div class="field"><label for="mname">Name</label><input id="mname" style="width:130px"></div>
+      <div class="field"><label for="macres">Acres</label><input type="number" id="macres" value="1" step="0.5" min="0.1"></div>
+      <div class="field"><label for="mlang">Language</label><select id="mlang">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></div>
+      <button type="button" class="go" id="madd">Add member</button></div><p class="hint" id="mmsg"></p>`;
+  const sharesById = Object.fromEntries((d.shares || []).map(s => [s.id, s]));
+  const members = `<div class="scroll"><table><thead><tr><th>Member</th><th>Phone</th><th class="n">Acres</th><th class="n">Pays for fertilizer</th><th class="n">Harvest (kg)</th><th></th></tr></thead><tbody>
+    ${d.members.map(m => { const s = sharesById[m.id] || {}; return `<tr><td>${esc(m.name || "–")}</td><td>${esc(m.phone)}</td><td class="n">${m.acres}</td><td class="n">${s.pays != null ? "$" + fmt(s.pays, 2) : "–"}</td><td class="n">${s.harvest_kg != null ? fmt(r5(s.harvest_kg)) : "–"}</td><td><button class="sm" data-rm="${m.id}">Remove</button></td></tr>`; }).join("")
+      || `<tr><td colspan="6" class="hint">No members yet: add the farmers below.</td></tr>`}</tbody></table></div>`;
+  let body = "";
+  if(d.plan && d.plan.ok){
+    const b = d.bulk, s = d.selling, g = d.plan.yield_gap;
+    const prods = b.products.map(x => `<tr><td>${esc(x.name)}</td><td class="n">${fmt(r5(x.kg_farm))} kg</td><td class="n">${fmt(Math.ceil(x.bags_farm))} bags</td></tr>`).join("");
+    const gb = s && s.group.best, ab = s && s.alone.best;
+    const sell = s ? `<div class="two">
+        <div class="box green"><div class="lbl">Selling together · one truck ($${s.truck_rate}/tonne-km)</div>
+          <div>${gb ? `Take all ${fmt(r5(g.with_plan.kg_farm))} kg to <b>${esc(gb.name)}</b> (${gb.km} km): <b>+$${fmt(gb.gain_total)}</b> for the group after transport.` : `Sell in <b>${esc(s.market)}</b>: no nearby market pays enough more, even by truck.`}</div></div>
+        <div class="box"><div class="lbl">Each farmer alone ($${s.small_rate}/tonne-km)</div>
+          <div>${ab ? `One farmer's ${fmt(r5(s.alone.qty_kg))} kg to ${esc(ab.name)}: +$${fmt(ab.gain_total)} each.` : `Alone, travelling to a better market does not pay: each sells in ${esc(s.market)}.`}</div></div></div>` : "";
+    const bu = d.bundle && d.bundle.available && d.bundle.offered ? `<div class="box teal"><div class="lbl">Protect the group's fertilizer</div>
+        <div>Add <b>$${fmt(d.bundle.premium, 2)}</b> for the whole group: if the season fails in ${esc(d.bundle.district)}, the $${fmt(d.bundle.fert_cost)} fertilizer money comes back.</div></div>` : "";
+    body = `<div class="tiles">
+        <div class="tile"><div class="v">${d.members.length}</div><div class="k">farmers · ${fmt(d.acres, 1)} acres</div></div>
+        <div class="tile"><div class="v">$${fmt(b.bulk_cost)}</div><div class="k">bulk fertilizer order</div></div>
+        <div class="tile good"><div class="v">−$${fmt(b.saving)}</div><div class="k">saved by buying together (${b.discount_pct}%)</div></div>
+        <div class="tile"><div class="v">${fmt(r5(g.with_plan.kg_farm))} kg</div><div class="k">expected group harvest</div></div></div>
+      <div class="box green"><div class="lbl">Buy together · plant ${esc(d.plan.season.window_text)}</div>
+        ${b.products.length ? `<table><tbody>${prods}</tbody></table><div class="hint">List price $${fmt(b.list_cost)} → group price $${fmt(b.bulk_cost)} (${b.discount_pct}% bulk discount; set it to what your agro-dealer offers).</div>` : `<div>Fertilizer does not pay here at today's prices.</div>`}</div>
+      ${bu}${sell}`;
+  } else if(d.plan){ body = `<p class="err">${esc(d.plan.message || "No plan for this place.")}</p>`; }
+  else if(d.error){ body = `<p class="err">${esc(d.error)}</p>`; }
+  $("out").innerHTML = `<div><h3 style="margin:0;font-size:22px">${esc(c.name)}</h3><div class="hint">${esc(crop)} · ${esc(c.place)}</div></div>
+    ${body}<div><div class="lbl">Members</div>${members}</div>${memberForm}
+    <div class="box"><div class="lbl">Message all members by SMS</div><textarea id="msgtext" placeholder="Meeting on Friday at the store: bring your share for the fertilizer order."></textarea>
+      <div class="row"><button type="button" id="msend">Send to ${d.members.length} members</button><span class="hint" id="msgres"></span></div></div>`;
+  $("madd").addEventListener("click", async () => {
+    try{ await post(`/api/coops/${c.id}/members`, {phone: $("mphone").value, name: $("mname").value, acres: $("macres").value, lang: $("mlang").value}); open(c.id); }
+    catch(e){ $("mmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; } });
+  document.querySelectorAll("[data-rm]").forEach(bt => bt.addEventListener("click", async () => { await post(`/api/coops/${c.id}/members/${bt.dataset.rm}/remove`); open(c.id); }));
+  $("msend").addEventListener("click", async () => {
+    try{ const r = await post(`/api/coops/${c.id}/message`, {text: $("msgtext").value}); $("msgres").textContent = `${r.sent} SMS queued (see Alerts page).`; }
+    catch(e){ $("msgres").innerHTML = `<span class="err">${esc(e.message)}</span>`; } });
+}
+$("cadd").addEventListener("click", async () => {
+  try{ const r = await post("/api/coops", {name: $("cname").value, crop: $("ccrop").value, place: $("cplace").value, discount_pct: $("cdisc").value});
+    $("cmsg").textContent = ""; open(r.coop.id); }
+  catch(e){ $("cmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+});
+(async () => {
+  $("ccrop").innerHTML = Object.entries(CROPN).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  try{ const m = await api("/api/plan/meta"); $("places").innerHTML = m.places.map(p => `<option value="${esc(p.name)}">${esc(p.country)}</option>`).join(""); }catch(e){}
+  loadList().catch(e => { $("list").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+})();
+</script>
+</body>
+</html>

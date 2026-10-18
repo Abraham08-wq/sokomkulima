@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SokoMkulima Alerts Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Alerts admin: who is registered, run the alert engine (any date, for demos), and every SMS sent or queued. */
+:root{--soil:#0C1B13;--soil-2:#12261B;--soil-3:#183224;--rim:#244633;--text:#E6F2E6;--dim:#97B8A2;--faint:#5C7D69;
+  --maize:#4FD17F;--leaf:#B5E36A;--clay:#E8875F;--teal:#5CC6D0;
+  --display:"Archivo",Arial,Helvetica,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--soil);color:var(--text);font-family:var(--display);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1300px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:600px){.wrap{padding-inline:16px}}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand h1{margin:0;font-weight:800;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;line-height:1}
+.brand h1 span{color:var(--maize)}
+.brand p{margin:4px 0 0;color:var(--dim);max-width:72ch;font-size:14px}
+nav.tabs{display:inline-flex;border:1px solid var(--rim);border-radius:10px;overflow:hidden;align-self:center;flex-wrap:wrap}
+nav.tabs a{padding:9px 14px;color:var(--dim);text-decoration:none;font-weight:600;font-size:13.5px}
+nav.tabs a[aria-current=page]{background:var(--maize);color:var(--soil)}
+nav.tabs a:hover:not([aria-current]){color:var(--text);background:var(--soil-3)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:950px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--soil-2);border:1px solid var(--rim);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+select,input{font:500 14px var(--display);color:var(--text);background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:8px 10px;min-width:0}
+input[type=number]{width:80px}
+button{font:600 13.5px var(--display);color:var(--text);background:var(--soil-3);border:1px solid var(--rim);border-radius:8px;padding:9px 14px;cursor:pointer}
+button:hover{border-color:var(--maize)}
+button.go{background:var(--maize);color:var(--soil);border-color:var(--maize);font-weight:700}
+button.sm{padding:4px 9px;font-size:12px}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--maize);outline-offset:2px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--rim);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--rim);vertical-align:top}
+td.mono{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.pill{font:600 11px var(--mono);padding:2px 7px;border-radius:999px;white-space:nowrap}
+.pill.outbox{background:rgba(92,198,208,.15);color:var(--teal)} .pill.Success,.pill.sent{background:rgba(79,209,127,.15);color:var(--maize)}
+.pill.failed{background:rgba(232,135,95,.15);color:var(--clay)}
+.kind{font:500 11px var(--mono);color:var(--leaf)}
+.msg{max-width:60ch}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.note{font-size:13px;padding:8px 12px;border-radius:10px;background:var(--soil);border:1px solid var(--rim)}
+.err{color:var(--clay)}
+.foot{font-size:12px;color:var(--faint);margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Soko<span>Mkulima</span></h1>
+      <p>Alerts admin: farmers who registered (on the web, by SMS <b>JIUNGE MAHINDI KITALE</b>, or in a cooperative), the automatic alert engine, and every SMS.</p></div>
+    <nav class="tabs" aria-label="Pages"><a href="/farm">My farm</a><a href="/">Sell or store</a><a href="/plan">Plan the season</a><a href="/insure">Insure the crop</a><a href="/diagnose">Leaf doctor</a><a href="/coop">Cooperatives</a><a href="/warning">Early warning</a><a href="/admin" aria-current="page">Alerts</a></nav>
+  </header>
+  <p class="note" id="gw">SMS gateway: …</p>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="r-h">
+      <h2 id="r-h">Register a farmer</h2>
+      <div class="row">
+        <div class="field"><label for="phone">Phone</label><input id="phone" placeholder="0712 345 678"></div>
+        <div class="field"><label for="name">Name</label><input id="name" placeholder="optional"></div>
+        <div class="field"><label for="lang">Language</label><select id="lang"></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="crop">Crop</label><select id="crop"></select></div>
+        <div class="field"><label for="place">Town / market</label><input id="place" list="places" placeholder="Kitale"><datalist id="places"></datalist></div>
+        <div class="field"><label for="acres">Acres</label><input type="number" id="acres" value="1" step="0.5" min="0.1"></div>
+        <button type="button" class="go" id="reg">Register</button>
+      </div>
+      <p class="hint" id="regmsg"></p>
+    </section>
+    <section class="card" aria-labelledby="a-h">
+      <h2 id="a-h">Run the alert engine</h2>
+      <p class="hint">It runs by itself every day. For a demo, pick any date: it sends the alerts farmers would get that day (planting window opening, season failing, harvest: sell or store and where). Each alert goes once per season.</p>
+      <div class="row">
+        <div class="field"><label for="day">Date</label><input type="date" id="day"></div>
+        <button type="button" class="go" id="run">Run alerts</button>
+      </div>
+      <div id="runout" class="hint"></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="f-h">
+    <h2 id="f-h">Farmers · <span id="fcount">…</span></h2>
+    <div class="scroll"><table><thead><tr><th>Phone</th><th>Name</th><th>Crop</th><th>Place</th><th>Acres</th><th>Language</th><th>Co-op</th><th>Status</th><th></th></tr></thead><tbody id="ftab"></tbody></table></div>
+  </section>
+  <section class="card" aria-labelledby="o-h">
+    <h2 id="o-h">Messages (sent and outbox)</h2>
+    <div class="scroll"><table><thead><tr><th>When (UTC)</th><th>To</th><th>Type</th><th>Message</th><th>Status</th></tr></thead><tbody id="otab"></tbody></table></div>
+  </section>
+  <p class="foot">Without an SMS gateway every message is kept here in the outbox. With Africa's Talking (AT_USERNAME, AT_API_KEY in docker-compose.yml) they are really sent; the free sandbox shows them in its online phone simulator.</p>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LANGS = {en:"English", fr:"Français", pt:"Português", ar:"العربية", sw:"Kiswahili", am:"አማርኛ", ha:"Hausa", so:"Soomaali", yo:"Yorùbá", rw:"Kinyarwanda", zu:"isiZulu"};
+const CROPN = {maize:"Maize", sorghum:"Sorghum", millet:"Millet", rice:"Rice", wheat:"Wheat", teff:"Teff", beans:"Beans", cowpea:"Cowpeas", groundnut:"Groundnuts", cassava:"Cassava"};
+async function api(p, opt){ const r = await fetch(p, opt); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || r.status); return j; }
+const post = (p, body) => api(p, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {})});
+
+async function loadFarmers(){
+  const d = await api("/api/farmers");
+  $("gw").textContent = "SMS gateway: " + d.gateway;
+  $("fcount").textContent = `${d.farmers.filter(f => f.active).length} active`;
+  $("ftab").innerHTML = d.farmers.map(f => `<tr><td class="mono">${esc(f.phone)}</td><td>${esc(f.name)}</td><td>${esc(CROPN[f.crop] || f.crop)}</td><td>${esc(f.place)}</td><td>${f.acres}</td><td>${esc(LANGS[f.lang] || f.lang)}</td><td>${esc(f.coop || "")}</td>
+    <td>${f.active ? '<span class="pill sent">active</span>' : '<span class="pill failed">stopped</span>'}</td><td>${f.active ? `<button class="sm" data-stop="${f.id}">Stop</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="9" class="hint">No farmers yet.</td></tr>`;
+  document.querySelectorAll("[data-stop]").forEach(b => b.addEventListener("click", async () => { await post(`/api/farmers/${b.dataset.stop}/stop`); refresh(); }));
+}
+async function loadMessages(){
+  const d = await api("/api/messages");
+  $("otab").innerHTML = d.messages.map(m => `<tr><td class="mono">${esc(m.created.replace("T", " ").slice(0, 16))}</td><td class="mono">${esc(m.phone)}</td><td class="kind">${esc(m.kind)}</td>
+    <td class="msg" dir="auto">${esc(m.message)}</td><td><span class="pill ${esc(m.status)}" title="${esc(m.detail)}">${esc(m.status)}</span></td></tr>`).join("") || `<tr><td colspan="5" class="hint">No messages yet.</td></tr>`;
+}
+const refresh = () => { loadFarmers().catch(() => {}); loadMessages().catch(() => {}); };
+$("reg").addEventListener("click", async () => {
+  try{ const r = await post("/api/farmers", {phone: $("phone").value, name: $("name").value, lang: $("lang").value, crop: $("crop").value, place: $("place").value, acres: $("acres").value});
+    $("regmsg").textContent = "Registered. Welcome SMS: " + r.message; refresh(); }
+  catch(e){ $("regmsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+});
+$("run").addEventListener("click", async () => {
+  $("runout").textContent = "Running… (the first run for a place reads its soil and weather)";
+  try{ const r = await post(`/api/alerts/run${$("day").value ? "?today=" + $("day").value : ""}`);
+    $("runout").innerHTML = `${esc(r.date)}: ${r.sent.length} new SMS for ${r.farmers} farmers.` + (r.errors.length ? ` <span class="err">${esc(r.errors.join("; "))}</span>` : "");
+    refresh(); }
+  catch(e){ $("runout").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+});
+(async () => {
+  $("lang").innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  $("crop").innerHTML = Object.entries(CROPN).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  $("day").value = new Date().toISOString().slice(0, 10);
+  try{ const m = await api("/api/plan/meta"); $("places").innerHTML = m.places.map(p => `<option value="${esc(p.name)}">${esc(p.country)}</option>`).join(""); }catch(e){}
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SokoMkulima Early Warning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Early warning for governments and NGOs: districts coloured by risk level (map, left), the most at-risk districts
+   with what drives their score (right). Counts per level on top. */
+:root{--soil:#0C1B13;--soil-2:#12261B;--soil-3:#183224;--rim:#244633;--text:#E6F2E6;--dim:#97B8A2;--faint:#5C7D69;
+  --maize:#4FD17F;--leaf:#B5E36A;--clay:#E8875F;--teal:#5CC6D0;
+  --low:#2C6E47;--watch:#B5E36A;--alert:#E8B35F;--emer:#E8875F;
+  --display:"Archivo",Arial,Helvetica,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--soil);color:var(--text);font-family:var(--display);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1440px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:600px){.wrap{padding-inline:16px}}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand h1{margin:0;font-weight:800;font-size:clamp(28px,4vw,40px);letter-spacing:-.01em;line-height:1}
+.brand h1 span{color:var(--maize)}
+.brand p{margin:4px 0 0;color:var(--dim);max-width:76ch;font-size:14px}
+nav.tabs{display:inline-flex;border:1px solid var(--rim);border-radius:10px;overflow:hidden;align-self:center;flex-wrap:wrap}
+nav.tabs a{padding:9px 14px;color:var(--dim);text-decoration:none;font-weight:600;font-size:13.5px}
+nav.tabs a[aria-current=page]{background:var(--maize);color:var(--soil)}
+nav.tabs a:hover:not([aria-current]){color:var(--text);background:var(--soil-3)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:700px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--soil-2);border:1px solid var(--rim);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center}
+.tile .sw{width:12px;height:36px;border-radius:3px;flex:none}
+.tile .v{font:600 24px var(--mono);line-height:1.1} .tile .k{font-size:12px;color:var(--dim)}
+.main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1050px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--soil-2);border:1px solid var(--rim);border-radius:14px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font:600 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.mapbox{position:relative;border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 60% 45%,#173324,#0A170F 70%)}
+#map{display:block;width:100%;height:auto;aspect-ratio:1/1;max-height:640px;cursor:pointer}
+.tip{position:absolute;pointer-events:none;background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:6px 9px;font-size:12.5px;display:none;white-space:nowrap;z-index:2}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{font:600 13.5px var(--display);color:var(--text);background:var(--soil-3);border:1px solid var(--rim);border-radius:8px;padding:8px 13px;cursor:pointer}
+button:hover{border-color:var(--maize)}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--maize);outline-offset:2px}
+select{font:500 14px var(--display);color:var(--text);background:var(--soil);border:1px solid var(--rim);border-radius:8px;padding:7px 10px}
+.list{display:flex;flex-direction:column;gap:8px;max-height:660px;overflow-y:auto;padding-right:4px}
+.d{border:1px solid var(--rim);background:var(--soil);border-radius:10px;padding:10px 12px;cursor:pointer}
+.d[aria-selected=true]{border-color:var(--text)}
+.d .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.d .nm{font-weight:700}
+.badge{font:600 11.5px var(--mono);padding:2px 8px;border-radius:999px;color:var(--soil)}
+.drv{display:grid;grid-template-columns:7em minmax(0,1fr) 3em;gap:4px 8px;align-items:center;font-size:12.5px;margin-top:6px}
+.drv .bar{height:6px;background:var(--soil-3);border-radius:3px;overflow:hidden}
+.drv .bar i{display:block;height:100%;background:var(--dim);border-radius:0 3px 3px 0}
+.drv .t{grid-column:1/-1;color:var(--dim);margin:-2px 0 2px}
+.hint{margin:0;color:var(--dim);font-size:13px}
+.err{color:var(--clay)}
+.foot{font-size:12px;color:var(--faint);margin:0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+.legend i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Soko<span>Mkulima</span></h1>
+      <p>Early warning for governments and NGOs: which districts are heading into a food crisis in the next 3–6 months, from this season's weather, price forecasts, recent price rises and each district's history.</p></div>
+    <nav class="tabs" aria-label="Pages"><a href="/farm">My farm</a><a href="/">Sell or store</a><a href="/plan">Plan the season</a><a href="/insure">Insure the crop</a><a href="/diagnose">Leaf doctor</a><a href="/coop">Cooperatives</a><a href="/warning" aria-current="page">Early warning</a><a href="/admin">Alerts</a></nav>
+  </header>
+  <div class="tiles" id="tiles"></div>
+  <div class="main">
+    <section class="card" aria-labelledby="m-h">
+      <h2 id="m-h">Risk by district · <span id="when">…</span></h2>
+      <div class="row"><button type="button" id="run">Recompute now</button><span class="hint" id="state"></span></div>
+      <div class="mapbox"><canvas id="map" aria-label="Map of districts coloured by early-warning level"></canvas><div class="tip" id="tip"></div></div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <section class="card" aria-labelledby="l-h">
+      <h2 id="l-h">Most at risk</h2>
+      <div class="row"><label class="hint" for="flt">Show</label><select id="flt"><option value="">all levels</option><option>Emergency</option><option>Alert</option><option>Watch</option><option>Low</option></select>
+        <select id="cty"><option value="">all countries</option></select></div>
+      <div class="list" id="list"></div>
+    </section>
+  </div>
+  <p class="foot">Score 0–100 = 45% this season's expected harvest loss (weather index, live) + 25% forecast staple-price rise over 3 months + 15% price rise over the last 3 months + 15% how often the district's harvest failed since 1991. An indicator to direct attention, not an official IPC classification. Computed daily.</p>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LV = {Emergency: "#E8875F", Alert: "#E8B35F", Watch: "#B5E36A", Low: "#2C6E47"};
+const BOUNDS = {lon0:-20, lon1:55, lat0:-37, lat1:38};
+let W = null, sel = null, world = null;
+async function api(p, opt){ const r = await fetch(p, opt); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.message || j.error || r.status); return j; }
+const cv = $("map"), ctx = cv.getContext("2d");
+function resize(){ const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; ctx.setTransform(d,0,0,d,0,0); draw(); }
+function proj(lon, lat){ const w = cv.clientWidth, h = cv.clientHeight; return [(lon - BOUNDS.lon0) / (BOUNDS.lon1 - BOUNDS.lon0) * w, (BOUNDS.lat1 - lat) / (BOUNDS.lat1 - BOUNDS.lat0) * h]; }
+function path(r){ ctx.beginPath(); r.forEach(([lo, la], i) => { const [x, y] = proj(lo, la); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); }
+async function loadWorld(){
+  try{ await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+    const topo = await (await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json")).json();
+    world = topojson.feature(topo, topo.objects.countries).features; draw(); }catch(e){ world = null; }
+}
+function shown(){ if(!W) return []; const f = $("flt").value, c = $("cty").value; return W.districts.filter(d => (!f || d.level === f) && (!c || d.country === c)); }
+function draw(){
+  const w = cv.clientWidth, h = cv.clientHeight; ctx.clearRect(0, 0, w, h);
+  if(world){ ctx.lineWidth = .8; ctx.strokeStyle = "rgba(151,184,162,.25)"; ctx.fillStyle = "rgba(230,242,230,.03)";
+    for(const f of world){ for(const poly of (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates)){ path(poly[0]); ctx.fill(); ctx.stroke(); } } }
+  if(!W) return;
+  const vis = new Set(shown().map(d => d.fnid));
+  for(const d of W.districts){ for(const r of (W.outlines[d.fnid] || [])){ path(r);
+      ctx.globalAlpha = vis.has(d.fnid) ? 1 : 0.15; ctx.fillStyle = LV[d.level]; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.lineWidth = sel === d.fnid ? 2.5 : .6; ctx.strokeStyle = sel === d.fnid ? "#E6F2E6" : "#12261B"; ctx.stroke(); } }
+}
+function hit(ev){
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, dpr = devicePixelRatio || 1;
+  for(const d of shown()) for(const ring of (W.outlines[d.fnid] || [])){ path(ring); if(ctx.isPointInPath(x * dpr, y * dpr)) return d; }
+  return null;
+}
+cv.addEventListener("mousemove", ev => { if(!W) return; const d = hit(ev), tip = $("tip"), r = cv.getBoundingClientRect();
+  if(!d){ tip.style.display = "none"; return; }
+  tip.style.display = "block"; tip.textContent = `${d.name}, ${d.country}: ${d.level} (${d.score})`;
+  tip.style.left = Math.min(ev.clientX - r.left + 12, r.width - 230) + "px"; tip.style.top = (ev.clientY - r.top + 12) + "px"; });
+cv.addEventListener("mouseleave", () => { $("tip").style.display = "none"; });
+cv.addEventListener("click", ev => { const d = W && hit(ev); if(d){ sel = d.fnid; list(); draw(); document.querySelector(`[data-f="${d.fnid}"]`)?.scrollIntoView({block: "nearest"}); } });
+function list(){
+  const rows = shown().slice(0, 80);
+  $("list").innerHTML = rows.map(d => `<div class="d" data-f="${d.fnid}" aria-selected="${sel === d.fnid}" tabindex="0">
+      <div class="top"><span><span class="nm">${esc(d.name)}</span> <span class="hint">${esc(d.admin_1 !== d.name ? d.admin_1 + ", " : "")}${esc(d.country)} · ${esc(d.crop)}</span></span>
+        <span class="badge" style="background:${LV[d.level]}">${d.level} ${Math.round(d.score)}</span></div>
+      <div class="drv">${d.drivers.map(x => `<span>${esc(x.signal)}</span><span class="bar"><i style="width:${Math.min(100, x.points / 45 * 100)}%"></i></span><span style="font-family:var(--mono);text-align:right">${x.points}</span><span class="t">${esc(x.text)}</span>`).join("")}</div></div>`).join("")
+    || `<p class="hint">No districts at this level.</p>`;
+  document.querySelectorAll(".d").forEach(e => e.addEventListener("click", () => { sel = e.dataset.f; list(); draw(); }));
+}
+async function load(){
+  try{
+    const d = await api("/api/warning");
+    $("state").textContent = d.running ? `Computing… ${d.progress || ""}` : d.error ? `Last run failed: ${d.error}` : "";
+    if(!d.ready){
+      $("when").textContent = d.insurance_ready ? "not computed yet" : "waiting for the insurance model";
+      $("tiles").innerHTML = ""; $("list").innerHTML = `<p class="hint">${d.insurance_ready ? "Press Recompute now (about 5–15 minutes the first time: it reads this season's rain for every district)." : "Train the insurance model first (it runs automatically)."}</p>`;
+      if(d.running) setTimeout(load, 10000); return;
+    }
+    W = d;
+    $("when").textContent = `${d.districts.length} districts, ${d.date}`;
+    $("tiles").innerHTML = ["Emergency","Alert","Watch","Low"].map(n => `<div class="tile"><span class="sw" style="background:${LV[n]}"></span><div><div class="v">${d.counts[n] || 0}</div><div class="k">${n}</div></div></div>`).join("");
+    $("legend").innerHTML = ["Low","Watch","Alert","Emergency"].map(n => `<span><i style="background:${LV[n]}"></i>${n}</span>`).join("");
+    const cs = [...new Set(d.districts.map(x => x.country))].sort();
+    if($("cty").options.length <= 1) $("cty").innerHTML += cs.map(c => `<option>${esc(c)}</option>`).join("");
+    list(); resize();
+    if(d.running) setTimeout(load, 10000);
+  }catch(e){ $("list").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+$("run").addEventListener("click", async () => { try{ await api("/api/warning/run", {method: "POST"}); $("state").textContent = "Computing…"; setTimeout(load, 5000); }catch(e){ $("state").textContent = e.message; } });
+["flt","cty"].forEach(id => $(id).addEventListener("change", () => { list(); draw(); }));
+addEventListener("resize", resize);
+load(); loadWorld();
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+name: sokomkulima
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      LIVE: "1"            # 1 = download the latest WFP prices for Africa from HDX (needs internet); 0 = use data/raw only
+      REFRESH_HOURS: "24"  # how often the backend re-checks WFP for new prices (retrains only if they changed)
+      COUNTRIES: ""        # empty = all of Africa; or e.g. "KEN,UGA,TZA,RWA,ETH,SSD" for a faster first run
+      CROPS: "maize,sorghum,millet,rice,wheat,teff,beans,cowpea,groundnut,cassava"   # crops with too little data are skipped
+      PRICETYPE: Retail    # Retail or Wholesale
+      TRAIN_GNN: "1"       # 0 = skip the graph neural network (faster, baseline models only)
+      EPOCHS: "60"         # max epochs; early stopping (PATIENCE 8) usually stops sooner
+      INSURE: "1"          # 1 = train the crop-insurance model (page 3) after the price models
+      INSURE_THREADS: "4"  # parallel weather downloads for the insurance training
+      DISEASE: "1"         # 1 = download leaf photos and train the crop-disease CNN (photo diagnosis page)
+      DISEASE_CROPS: "maize,potato,tomato,cassava"   # cassava = iCassava field photos (~1 GB download)
+      UNIVERSAL: "1"       # 1 = universal leaf doctor for ANY plant (CLIP, ~600 MB download once + 10-25 min test/training)
+      HF_HUB_DISABLE_XET: "1"   # plain download for the plant model (the newer "xet" method can stall)
+      PLANTNET_API_KEY: "" # optional: free key from my.plantnet.org names 50,000 plant species (500 photos/day)
+      AT_USERNAME: ""      # Africa's Talking: "sandbox" (free test) or your app name; empty = SMS kept in the outbox
+      AT_API_KEY: ""
+      AT_FROM: ""          # optional sender ID / short code
+      ALERT_HOURS: "24"    # how often automatic SMS alerts and the early-warning map are refreshed
+      APP_USER: ""         # set both to ask for a login (do this before sharing online, e.g. with ngrok)
+      APP_PASSWORD: ""
+    volumes:
+      - ./data:/app/data        # downloaded WFP files are kept in ./data/raw
+      - ./outputs:/app/outputs  # trained models, forecasts and status.json
+    shm_size: "1gb"            # shared memory for the photo-training data loader
+    restart: unless-stopped

@@ -1,0 +1,7 @@
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+flask>=3.0
+rasterio>=1.3        # reads the iSDAsoil 30 m soil maps of Africa (season planner)
+gunicorn>=22.0          # production web server (run_all.sh)
+pillow                # reading leaf photos
